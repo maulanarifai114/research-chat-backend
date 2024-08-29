@@ -13,7 +13,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//#region User
 model User {
-  id   String  @id @default(uuid())
-  name String?
+  Id         String    @id @default(uuid())
+  DateCreate DateTime  @default(now())
+  DateUpdate DateTime? @updatedAt
+  Name       String
+  Email      String    @unique
+  Password   String
+  Role       RoleType
+  Member     Member[]
+  Message    Message[]
 }
+
+//#endregion
+
+enum RoleType {
+  SUPERADMIN
+  ADMIN
+  MENTOR
+  MEMBER
+}
+
+//#region Conversation
+model Conversation {
+  Id         String           @id @default(uuid())
+  DateCreate DateTime         @default(now())
+  DateUpdate DateTime?        @updatedAt
+  Name       String?
+  Type       ConversationType
+  Member     Member[]
+  Message    Message[]
+}
+
+//#endregion
+
+enum ConversationType {
+  PRIVATE
+  GROUP
+  BROADCAST
+}
+
+//#region Member
+model Member {
+  Id             String       @id @default(uuid())
+  DateCreate     DateTime     @default(now())
+  DateUpdate     DateTime?    @updatedAt
+  IdUser         String
+  IdConversation String
+  User           User         @relation(fields: [IdUser], references: [Id], onDelete: Restrict)
+  Conversation   Conversation @relation(fields: [IdConversation], references: [Id], onDelete: Restrict)
+}
+
+//#endregion
+
+//#region Message
+model Message {
+  Id             String       @id @default(uuid())
+  DateCreate     DateTime     @default(now())
+  DateUpdate     DateTime?    @updatedAt
+  Message        String
+  Attachment     String?      @default("[]")
+  IdUser         String
+  IdConversation String
+  User           User         @relation(fields: [IdUser], references: [Id], onDelete: Restrict)
+  Conversation   Conversation @relation(fields: [IdConversation], references: [Id], onDelete: Restrict)
+}
+
+//#endregion
