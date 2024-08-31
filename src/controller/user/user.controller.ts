@@ -1,8 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Roles } from 'src/guard/roles/roles.decorator';
+import { Role } from 'src/guard/roles/roles.enum';
+import { RolesGuard } from 'src/guard/roles/roles.guard';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
 @Controller('user')
+@UseGuards(RolesGuard)
 export class UserController {
   constructor(
     private prismaService: PrismaService,
@@ -11,6 +15,7 @@ export class UserController {
 
   //#region list
   @Get('list')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
   async getUserList() {
     const dbUser = await this.prismaService.user.findMany();
 
