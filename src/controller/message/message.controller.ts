@@ -42,7 +42,7 @@ export class MessageController {
       },
     });
 
-    if (!dbConversation || user.role === RoleType.ADMIN || user.role === RoleType.SUPERADMIN) {
+    if (!dbConversation) {
       return this.utilityService.globalResponse({
         statusCode: 404,
         message: 'Conversation not found',
@@ -51,7 +51,7 @@ export class MessageController {
 
     const isUserMember = dbConversation.Member.some((member) => member.IdUser === user.id);
 
-    if (!isUserMember) {
+    if (!isUserMember || user.role === RoleType.ADMIN || user.role === RoleType.SUPERADMIN) {
       return this.utilityService.globalResponse({
         statusCode: 403,
         message: 'Access denied: You are not a member of this conversation',
@@ -102,6 +102,31 @@ export class MessageController {
       },
     });
     const messageId = dbMessage ? dbMessage.Id : this.utilityService.generateId();
+
+    const dbConversation = await this.prismaService.conversation.findUnique({
+      where: {
+        Id: body.idConversation,
+      },
+      include: {
+        Member: true,
+      },
+    });
+
+    if (!dbConversation) {
+      return this.utilityService.globalResponse({
+        statusCode: 404,
+        message: 'Conversation not found',
+      });
+    }
+
+    const isUserMember = dbConversation.Member.some((member) => member.IdUser === user.id);
+
+    if (!isUserMember) {
+      return this.utilityService.globalResponse({
+        statusCode: 403,
+        message: 'Access denied: You are not a member of this conversation',
+      });
+    }
 
     const message = await this.prismaService.message.upsert({
       where: {
