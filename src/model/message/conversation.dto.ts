@@ -19,3 +19,9 @@ export interface Member {
   email: string;
   role: RoleType;
 }
+
+export interface MemberDto {
+  id: string;
+  idUser: string;
+  idConversation: string;
+}

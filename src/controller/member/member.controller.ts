@@ -1,10 +1,10 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ConversationType } from '@prisma/client';
 import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
 import { RolesGuard } from 'src/guard/roles/roles.guard';
-import { Conversation, Member } from 'src/model/message/conversation.dto';
+import { Conversation, Member, MemberDto } from 'src/model/message/conversation.dto';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
@@ -150,6 +150,66 @@ export class MemberController {
       },
       message: 'Success Get List Member by ID User',
       statusCode: 200,
+    });
+  }
+  //#endregion
+
+  //#region Save
+  @Post('save')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async saveMember(@Req() request: Request, @Body() body: MemberDto) {
+    const user = request.user;
+    const dbUser = await this.prismaService.user.findUnique({
+      where: { Id: user.id },
+    });
+
+    if (!dbUser) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User not found',
+      });
+    }
+
+    const dbMember = await this.prismaService.member.findUnique({
+      where: {
+        Id: body.id,
+      },
+    });
+    const memberId = dbMember ? dbMember.Id : this.utilityService.generateId();
+
+    const existMember = await this.prismaService.member.count({
+      where: {
+        IdUser: body.id,
+        IdConversation: body.idConversation,
+      },
+    });
+
+    if (existMember) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User available on the conversation',
+      });
+    }
+
+    const member = await this.prismaService.member.upsert({
+      where: {
+        Id: memberId,
+      },
+      update: {
+        IdUser: body.idUser,
+        IdConversation: body.idConversation,
+      },
+      create: {
+        Id: this.utilityService.generateId(),
+        IdUser: body.idUser,
+        IdConversation: body.idConversation,
+      },
+    });
+
+    return this.utilityService.globalResponse({
+      statusCode: 200,
+      message: `Success ${body.id ? 'Update' : 'Create'} Member`,
+      data: { id: member.Id },
     });
   }
   //#endregion
