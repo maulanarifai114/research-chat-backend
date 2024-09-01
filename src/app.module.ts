@@ -8,6 +8,8 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtService } from './services/jwt.service';
 import { AuthController } from './controller/auth/auth.controller';
 import { JwtModule } from '@nestjs/jwt';
+import { MemberController } from './controller/member/member.controller';
+import { ConversationController } from './controller/conversation/conversation.controller';
 
 @Module({
   imports: [
@@ -17,7 +19,7 @@ import { JwtModule } from '@nestjs/jwt';
       envFilePath: ['.env'],
     }),
   ],
-  controllers: [UserController, MessageController, AuthController],
+  controllers: [UserController, MessageController, AuthController, MemberController, ConversationController],
   providers: [ChatGateway, PrismaService, UtilityService, JwtService],
 })
 export class AppModule {}

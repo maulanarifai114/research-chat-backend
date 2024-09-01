@@ -33,7 +33,6 @@ export class RolesGuard implements CanActivate {
 
     if (decoded) {
       const role = decoded.role;
-      console.log(decoded);
       if (!role) throw new UnauthorizedException(this.utilityService.globalResponse({ statusCode: 401, message: 'Unauthorized access' }));
 
       const hasRole = roles.map((a) => a.toLowerCase()).includes(role.toLowerCase());
