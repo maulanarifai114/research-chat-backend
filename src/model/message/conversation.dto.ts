@@ -38,6 +38,5 @@ export interface MessageDto {
   id?: string;
   message?: string;
   attachment?: string;
-  idUSer: string;
   idConversation: string;
 }

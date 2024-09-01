@@ -135,14 +135,14 @@ export class MessageController {
       update: {
         Message: body.message,
         Attachment: body.attachment,
-        IdUser: body.idUSer,
+        IdUser: user.id,
         IdConversation: body.idConversation,
       },
       create: {
         Id: this.utilityService.generateId(),
         Message: body.message,
         Attachment: body.attachment,
-        IdUser: body.idUSer,
+        IdUser: user.id,
         IdConversation: body.idConversation,
       },
     });
