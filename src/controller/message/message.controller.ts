@@ -1,10 +1,10 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { RoleType } from '@prisma/client';
 import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
 import { RolesGuard } from 'src/guard/roles/roles.guard';
-import { Conversation } from 'src/model/message/conversation.dto';
+import { Conversation, Message, MessageDto } from 'src/model/message/conversation.dto';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
@@ -64,7 +64,7 @@ export class MessageController {
       type: dbConversation.Type,
     };
 
-    const message = dbConversation.Message.map((message) => ({
+    const message: Message[] = dbConversation.Message.map((message) => ({
       id: message.Id,
       dateCreated: message.DateCreate,
       dateUpdate: message.DateUpdate,
@@ -76,6 +76,56 @@ export class MessageController {
       data: { conversation, message },
       message: 'Success Get List Message by Id Conversation',
       statusCode: 200,
+    });
+  }
+  //#endregion
+
+  //#region Save
+  @Post('save')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async saveMessage(@Req() request: Request, @Body() body: MessageDto) {
+    const user = request.user;
+    const dbUser = await this.prismaService.user.findUnique({
+      where: { Id: user.id },
+    });
+
+    if (!dbUser) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User not found',
+      });
+    }
+
+    const dbMessage = await this.prismaService.message.findUnique({
+      where: {
+        Id: body.id ?? '',
+      },
+    });
+    const messageId = dbMessage ? dbMessage.Id : this.utilityService.generateId();
+
+    const message = await this.prismaService.message.upsert({
+      where: {
+        Id: messageId,
+      },
+      update: {
+        Message: body.message,
+        Attachment: body.attachment,
+        IdUser: body.idUSer,
+        IdConversation: body.idConversation,
+      },
+      create: {
+        Id: this.utilityService.generateId(),
+        Message: body.message,
+        Attachment: body.attachment,
+        IdUser: body.idUSer,
+        IdConversation: body.idConversation,
+      },
+    });
+
+    return this.utilityService.globalResponse({
+      statusCode: 200,
+      message: `Success ${body.id ? 'Update' : 'Create'} Message`,
+      data: { id: message.Id },
     });
   }
   //#endregion

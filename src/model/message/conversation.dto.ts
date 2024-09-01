@@ -21,7 +21,23 @@ export interface Member {
 }
 
 export interface MemberDto {
-  id: string;
+  id?: string;
   idUser: string;
+  idConversation: string;
+}
+
+export interface Message {
+  id: string;
+  dateCreated: Date;
+  dateUpdate: Date;
+  message: string;
+  attachment: string;
+}
+
+export interface MessageDto {
+  id?: string;
+  message?: string;
+  attachment?: string;
+  idUSer: string;
   idConversation: string;
 }

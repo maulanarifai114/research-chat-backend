@@ -83,7 +83,6 @@ export class ConversationController {
         Id: body.id ?? '',
       },
     });
-
     const conversationId = dbConversation ? dbConversation.Id : this.utilityService.generateId();
 
     const conversation = await this.prismaService.conversation.upsert({
