@@ -4,7 +4,7 @@ import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
 import { RolesGuard } from 'src/guard/roles/roles.guard';
-import { ConversationDto } from 'src/model/message/conversation.dto';
+import { ConversationDto, ConversationList } from 'src/model/message/conversation.dto';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
@@ -34,12 +34,28 @@ export class ConversationController {
 
     const dbConversation = await this.prismaService.conversation.findMany({
       include: {
-        Member: true,
+        Member: {
+          include: {
+            User: true,
+          },
+        },
       },
     });
 
+    const conversation: ConversationList[] = dbConversation.map((conversation) => ({
+      id: conversation.Id,
+      name: conversation.Name,
+      type: conversation.Type,
+      member: conversation.Member.map((member) => ({
+        id: member.Id,
+        name: member.User.Name,
+        email: member.User.Email,
+        role: member.User.Role,
+      })),
+    }));
+
     return this.utilityService.globalResponse({
-      data: dbConversation,
+      data: conversation,
       message: 'Success Get List Conversation',
       statusCode: 200,
     });
