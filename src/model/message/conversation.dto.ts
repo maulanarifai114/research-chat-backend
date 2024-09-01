@@ -6,11 +6,11 @@ export class ConversationDto {
   type: ConversationType;
 }
 
-export interface ConversationList {
+export interface Conversation {
   id: string;
   name: string;
   type: ConversationType;
-  member: Member[];
+  member?: Member[];
 }
 
 export interface Member {

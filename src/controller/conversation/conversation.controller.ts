@@ -4,7 +4,7 @@ import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
 import { RolesGuard } from 'src/guard/roles/roles.guard';
-import { ConversationDto, ConversationList } from 'src/model/message/conversation.dto';
+import { ConversationDto, Conversation } from 'src/model/message/conversation.dto';
 import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
@@ -42,7 +42,7 @@ export class ConversationController {
       },
     });
 
-    const conversation: ConversationList[] = dbConversation.map((conversation) => ({
+    const conversation: Conversation[] = dbConversation.map((conversation) => ({
       id: conversation.Id,
       name: conversation.Name,
       type: conversation.Type,
