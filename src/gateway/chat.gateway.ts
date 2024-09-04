@@ -11,6 +11,8 @@ import { UtilityService } from 'src/services/utility.service';
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
+  private userSockets = new Map<string, string>();
+
   constructor(
     private prismaService: PrismaService,
     private utilityService: UtilityService,
@@ -22,16 +24,24 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   handleConnection(client: Socket) {
     console.log('Client connected:', client.id);
+
+    client.on('registerUser', (idUser: string) => {
+      this.userSockets.set(idUser, client.id);
+    });
   }
 
   handleDisconnect(client: Socket) {
     console.log('Client disconnected:', client.id);
+
+    this.userSockets.forEach((socketId, userId) => {
+      if (socketId === client.id) {
+        this.userSockets.delete(userId);
+      }
+    });
   }
 
   @SubscribeMessage('message')
   async handleMessage(client: Socket, payload: { sender: string; message?: string; attachment?: string; idConversation: string }): Promise<void> {
-    console.log('Payload', payload);
-
     // Validasi data pengguna
     const dbUser = await this.prismaService.user.findUnique({
       where: { Id: payload.sender },
@@ -60,6 +70,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return;
     }
 
+    const receiver = dbConversation.Member.find((member) => member.IdUser !== payload.sender);
+
+    if (!receiver) {
+      client.emit('error', { message: 'No valid recipient found for this conversation' });
+      return;
+    }
+
     // Simpan pesan
     const message = await this.prismaService.message.create({
       data: {
@@ -71,6 +88,19 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       },
     });
 
-    this.server.emit('message', message);
+    const recipientSocketId = this.userSockets.get(receiver.IdUser);
+    const senderSocketId = this.userSockets.get(payload.sender);
+
+    if (recipientSocketId) {
+      this.server.to(recipientSocketId).emit('message', { ...message, member: { name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+    } else {
+      console.log(`User with ID ${receiver.IdUser} is not connected.`);
+    }
+
+    // Send the message to the sender as well
+    if (senderSocketId) {
+      this.server.to(senderSocketId).emit('message', { ...message, member: { name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+    }
+    // this.server.emit('message', message);
   }
 }

@@ -38,7 +38,11 @@ export class MessageController {
       },
       include: {
         Member: true,
-        Message: true,
+        Message: {
+          include: {
+            User: true,
+          },
+        },
       },
     });
 
@@ -70,6 +74,12 @@ export class MessageController {
       dateUpdate: message.DateUpdate,
       message: message.Message,
       attachment: message.Attachment,
+      member: {
+        id: message.User.Id,
+        name: message.User.Name,
+        email: message.User.Email,
+        role: message.User.Role,
+      },
     }));
 
     return this.utilityService.globalResponse({

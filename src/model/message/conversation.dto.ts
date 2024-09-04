@@ -32,6 +32,7 @@ export interface Message {
   dateUpdate: Date;
   message: string;
   attachment: string;
+  member?: Member;
 }
 
 export interface MessageDto {
@@ -39,4 +40,5 @@ export interface MessageDto {
   message?: string;
   attachment?: string;
   idConversation: string;
+  idUser: string;
 }
