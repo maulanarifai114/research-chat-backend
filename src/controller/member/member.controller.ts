@@ -88,7 +88,11 @@ export class MemberController {
     }
 
     const dbMember = await this.prismaService.member.findMany({
-      where: { IdUser: idUSer },
+      where: {
+        IdUser: {
+          not: idUSer,
+        },
+      },
       include: {
         User: true,
         Conversation: {
@@ -97,11 +101,6 @@ export class MemberController {
               include: {
                 User: true,
               },
-              where: {
-                IdUser: {
-                  not: idUSer,
-                },
-              },
             },
           },
         },
@@ -109,12 +108,26 @@ export class MemberController {
     });
 
     const dbPrivateMember = dbMember.filter((member) => member.Conversation.Type == ConversationType.PRIVATE);
-    const privateMember: Member[] = dbPrivateMember.map((member) => ({
-      id: member.User.Id,
-      name: member.User.Name,
-      email: member.User.Email,
-      role: member.User.Role,
-    }));
+    const uniquePrivateMembers = new Map<string, Member>();
+    dbPrivateMember.forEach((member) => {
+      if (!uniquePrivateMembers.has(member.User.Id)) {
+        uniquePrivateMembers.set(member.User.Id, {
+          id: member.User.Id,
+          name: member.User.Name,
+          email: member.User.Email,
+          role: member.User.Role,
+          idConversation: member.IdConversation,
+        });
+      }
+    });
+    const privateMember: Member[] = Array.from(uniquePrivateMembers.values());
+    // const privateMember: Member[] = dbPrivateMember.map((member) => ({
+    //   id: member.User.Id,
+    //   name: member.User.Name,
+    //   email: member.User.Email,
+    //   role: member.User.Role,
+    //   idConversation: member.IdConversation,
+    // }));
 
     const dbGroupMember = dbMember.filter((member) => member.Conversation.Type === ConversationType.GROUP);
     const groupMember: Conversation[] = dbGroupMember.map((member) => ({
@@ -172,14 +185,14 @@ export class MemberController {
 
     const dbMember = await this.prismaService.member.findUnique({
       where: {
-        Id: body.id,
+        Id: body?.id,
       },
     });
     const memberId = dbMember ? dbMember.Id : this.utilityService.generateId();
 
     const existMember = await this.prismaService.member.count({
       where: {
-        IdUser: body.id,
+        IdUser: body?.id,
         IdConversation: body.idConversation,
       },
     });
