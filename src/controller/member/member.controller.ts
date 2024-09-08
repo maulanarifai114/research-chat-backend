@@ -107,7 +107,7 @@ export class MemberController {
       },
     });
 
-    const dbPrivateMember = dbMember.filter((member) => member.Conversation.Type == ConversationType.PRIVATE);
+    const dbPrivateMember = dbMember.filter((member) => member.Conversation.Type === ConversationType.PRIVATE && member.Conversation.Member.some((convMember) => convMember.User.Id === idUSer));
     const uniquePrivateMembers = new Map<string, Member>();
     dbPrivateMember.forEach((member) => {
       if (!uniquePrivateMembers.has(member.User.Id)) {
