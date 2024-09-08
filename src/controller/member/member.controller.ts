@@ -121,39 +121,44 @@ export class MemberController {
       }
     });
     const privateMember: Member[] = Array.from(uniquePrivateMembers.values());
-    // const privateMember: Member[] = dbPrivateMember.map((member) => ({
-    //   id: member.User.Id,
-    //   name: member.User.Name,
-    //   email: member.User.Email,
-    //   role: member.User.Role,
-    //   idConversation: member.IdConversation,
-    // }));
 
     const dbGroupMember = dbMember.filter((member) => member.Conversation.Type === ConversationType.GROUP);
-    const groupMember: Conversation[] = dbGroupMember.map((member) => ({
-      id: member.Conversation.Id,
-      name: member.Conversation.Name,
-      type: member.Conversation.Type,
-      member: member.Conversation.Member.map((member) => ({
-        id: member.User.Id,
-        name: member.User.Name,
-        email: member.User.Email,
-        role: member.User.Role,
-      })),
-    }));
+    const uniqueGroupMembers = new Map<string, Conversation>();
+    dbGroupMember.forEach((member) => {
+      if (!uniqueGroupMembers.has(member.Conversation.Id)) {
+        uniqueGroupMembers.set(member.Conversation.Id, {
+          id: member.Conversation.Id,
+          name: member.Conversation.Name,
+          type: member.Conversation.Type,
+          member: member.Conversation.Member.map((member) => ({
+            id: member.User.Id,
+            name: member.User.Name,
+            email: member.User.Email,
+            role: member.User.Role,
+          })),
+        });
+      }
+    });
+    const groupMember: Conversation[] = Array.from(uniqueGroupMembers.values());
 
     const dbBroadcastMember = dbMember.filter((member) => member.Conversation.Type === ConversationType.BROADCAST);
-    const broadcastMember: Conversation[] = dbBroadcastMember.map((member) => ({
-      id: member.Conversation.Id,
-      name: member.Conversation.Name,
-      type: member.Conversation.Type,
-      member: member.Conversation.Member.filter((user) => user.User.Id !== idUSer).map((member) => ({
-        id: member.User.Id,
-        name: member.User.Name,
-        email: member.User.Email,
-        role: member.User.Role,
-      })),
-    }));
+    const uniqueBroadcastMembers = new Map<string, Conversation>();
+    dbBroadcastMember.forEach((member) => {
+      if (!uniqueBroadcastMembers.has(member.Conversation.Id)) {
+        uniqueBroadcastMembers.set(member.Conversation.Id, {
+          id: member.Conversation.Id,
+          name: member.Conversation.Name,
+          type: member.Conversation.Type,
+          member: member.Conversation.Member.filter((user) => user.User.Id !== idUSer).map((member) => ({
+            id: member.User.Id,
+            name: member.User.Name,
+            email: member.User.Email,
+            role: member.User.Role,
+          })),
+        });
+      }
+    });
+    const broadcastMember: Conversation[] = Array.from(uniqueBroadcastMembers.values());
 
     return this.utilityService.globalResponse({
       data: {
@@ -171,6 +176,7 @@ export class MemberController {
   @Post('save')
   @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
   async saveMember(@Req() request: Request, @Body() body: MemberDto) {
+    console.log('id conversation', body.idConversation);
     const user = request.user;
     const dbUser = await this.prismaService.user.findUnique({
       where: { Id: user.id },

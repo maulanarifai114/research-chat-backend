@@ -92,14 +92,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const senderSocketId = this.userSockets.get(payload.sender);
 
     if (recipientSocketId) {
-      this.server.to(recipientSocketId).emit('message', { ...message, member: { name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+      this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
     } else {
       console.log(`User with ID ${receiver.IdUser} is not connected.`);
     }
 
     // Send the message to the sender as well
     if (senderSocketId) {
-      this.server.to(senderSocketId).emit('message', { ...message, member: { name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+      this.server.to(senderSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
     }
     // this.server.emit('message', message);
   }
