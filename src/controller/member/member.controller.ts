@@ -177,19 +177,20 @@ export class MemberController {
   @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
   async getUsersOutsidePrivateConversationsByUserId(@Req() request: Request, @Param('userId') userId: string) {
     try {
-      // Ambil semua pengguna dari database kecuali SUPERADMIN
       const allUsers = await this.prismaService.user.findMany({
         where: {
           Role: {
             not: 'SUPERADMIN',
           },
+          Id: {
+            not: userId,
+          },
         },
       });
 
-      // Ambil semua percakapan tipe PRIVATE di mana userId terlibat
       const privateConversations = await this.prismaService.conversation.findMany({
         where: {
-          Type: 'PRIVATE', // Filter hanya untuk percakapan tipe PRIVATE
+          Type: 'PRIVATE',
           Member: {
             some: {
               IdUser: userId,
@@ -205,34 +206,36 @@ export class MemberController {
         },
       });
 
-      // Buat set untuk menyimpan ID pengguna yang terlibat dalam percakapan PRIVATE dengan userId
       const usersInPrivateConversations = new Set<string>();
       privateConversations.forEach((conversation) => {
         conversation.Member.forEach((member) => {
-          // Tambahkan pengguna selain userId sendiri yang terlibat dalam percakapan PRIVATE
           if (member.User.Id !== userId) {
             usersInPrivateConversations.add(member.User.Id);
           }
         });
       });
 
-      // Filter pengguna yang belum terlibat dalam percakapan PRIVATE dengan userId
       const usersOutsidePrivateConversations = allUsers.filter((user) => !usersInPrivateConversations.has(user.Id));
 
+      const member = usersOutsidePrivateConversations.map((user) => ({
+        id: user.Id,
+        name: user.Name,
+        email: user.Email,
+        role: user.Role,
+      }));
+
       return this.utilityService.globalResponse({
-        data: usersOutsidePrivateConversations,
+        data: member,
         message: "Success Get Users Outside of User's PRIVATE Conversations",
         statusCode: 200,
       });
     } catch (error) {
-      // Tangani error dan kembalikan respons yang sesuai
       return this.utilityService.globalResponse({
         statusCode: 500,
         message: 'Internal Server Error',
       });
     }
   }
-
   //#endregion
 
   //#region Save
