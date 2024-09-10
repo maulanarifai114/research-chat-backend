@@ -29,7 +29,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   handleDisconnect(client: Socket) {
-    console.log('Client disconnected:', client.id);
+    // console.log('Client disconnected:', client.id);
 
     this.userSockets.forEach((socketId, userId) => {
       if (socketId === client.id) {

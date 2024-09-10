@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ConversationType } from '@prisma/client';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ConversationType, RoleType } from '@prisma/client';
 import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
@@ -238,11 +238,47 @@ export class MemberController {
   }
   //#endregion
 
+  //#region Roles
+  @Get('list/user')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async getUsersByRoles(@Query('roles') roles: RoleType[] = []) {
+    try {
+      // Ensure roles is an array and filter out empty strings
+      const filteredRoles = Array.isArray(roles) ? roles.filter((role) => role) : [roles];
+
+      const users = await this.prismaService.user.findMany({
+        where: {
+          Role: {
+            in: filteredRoles, // Ensure this is always an array
+          },
+        },
+        select: {
+          Id: true,
+          Name: true,
+          Email: true,
+          Role: true,
+        },
+      });
+
+      return this.utilityService.globalResponse({
+        data: users,
+        message: 'Success Get Users by Roles',
+        statusCode: 200,
+      });
+    } catch (error) {
+      console.error(error); // Log the error for debugging
+      return this.utilityService.globalResponse({
+        statusCode: 500,
+        message: 'Internal Server Error',
+      });
+    }
+  }
+  //#endregion
+
   //#region Save
   @Post('save')
   @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
   async saveMember(@Req() request: Request, @Body() body: MemberDto) {
-    console.log('id conversation', body.idConversation);
     const user = request.user;
     const dbUser = await this.prismaService.user.findUnique({
       where: { Id: user.id },
@@ -295,6 +331,77 @@ export class MemberController {
       statusCode: 200,
       message: `Success ${body.id ? 'Update' : 'Create'} Member`,
       data: { id: member.Id },
+    });
+  }
+  //#endregion
+
+  //#region Bulk create
+  @Post('bulk')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async createBulkMembers(@Req() request: Request, @Body() body: { idUsers: string[]; idConversation: string }) {
+    const user = request.user;
+
+    // Check if the current user exists
+    const dbUser = await this.prismaService.user.findUnique({
+      where: { Id: user.id },
+    });
+
+    if (!dbUser) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User not found',
+      });
+    }
+
+    // Validate if the conversation exists
+    const dbConversation = await this.prismaService.conversation.findUnique({
+      where: { Id: body.idConversation },
+    });
+
+    if (!dbConversation) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'Conversation not found',
+      });
+    }
+
+    // Filter out users that are already members of the conversation
+    const existingMembers = await this.prismaService.member.findMany({
+      where: {
+        IdConversation: body.idConversation,
+        IdUser: { in: body.idUsers },
+      },
+    });
+
+    const existingUserIds = existingMembers.map((member) => member.IdUser);
+    const newUserIds = body.idUsers.filter((idUser) => !existingUserIds.includes(idUser));
+
+    if (newUserIds.length === 0) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'All users are already members of the conversation',
+      });
+    }
+
+    // Prepare data for bulk insert
+    const membersData: any[] = newUserIds.map((idUser) => ({
+      Id: this.utilityService.generateId(),
+      IdUser: idUser,
+      IdConversation: body.idConversation,
+      DateCreate: new Date(),
+      DateUpdate: new Date(),
+    }));
+
+    // Perform bulk insert using createMany
+    await this.prismaService.member.createMany({
+      data: membersData,
+      skipDuplicates: true,
+    });
+
+    return this.utilityService.globalResponse({
+      statusCode: 200,
+      message: `Successfully added ${membersData.length} members to the conversation`,
+      data: { membersCount: membersData.length },
     });
   }
   //#endregion
