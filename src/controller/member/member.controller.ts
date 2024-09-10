@@ -324,6 +324,7 @@ export class MemberController {
         Id: this.utilityService.generateId(),
         IdUser: body.idUser,
         IdConversation: body.idConversation,
+        IsAllowed: body.idUser === dbUser.Id,
       },
     });
 
@@ -387,6 +388,7 @@ export class MemberController {
     const membersData: any[] = newUserIds.map((idUser) => ({
       Id: this.utilityService.generateId(),
       IdUser: idUser,
+      IsAllowed: idUser === dbUser.Id,
       IdConversation: body.idConversation,
       DateCreate: new Date(),
       DateUpdate: new Date(),

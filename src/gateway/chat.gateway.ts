@@ -68,13 +68,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return;
     }
 
-    const receiver = dbConversation.Member.find((member) => member.IdUser !== payload.sender);
-
-    if (!receiver) {
-      client.emit('error', { message: 'No valid recipient found for this conversation' });
-      return;
-    }
-
     // Simpan pesan
     const message = await this.prismaService.message.create({
       data: {
@@ -86,13 +79,31 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       },
     });
 
-    const recipientSocketId = this.userSockets.get(receiver.IdUser);
     const senderSocketId = this.userSockets.get(payload.sender);
 
-    if (recipientSocketId) {
-      this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+    if (dbConversation.Member.length === 2) {
+      const receiver = dbConversation.Member.find((member) => member.IdUser !== payload.sender);
+
+      if (receiver) {
+        const recipientSocketId = this.userSockets.get(receiver.IdUser);
+        if (recipientSocketId) {
+          this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+        } else {
+          console.log(`User with ID ${receiver.IdUser} is not connected.`);
+        }
+      }
     } else {
-      console.log(`User with ID ${receiver.IdUser} is not connected.`);
+      // Percakapan grup (lebih dari 2 anggota)
+      dbConversation.Member.forEach((member) => {
+        if (member.IdUser !== payload.sender) {
+          const recipientSocketId = this.userSockets.get(member.IdUser);
+          if (recipientSocketId) {
+            this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
+          } else {
+            console.log(`User with ID ${member.IdUser} is not connected.`);
+          }
+        }
+      });
     }
 
     // Send the message to the sender as well

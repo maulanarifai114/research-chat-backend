@@ -37,13 +37,14 @@ enum RoleType {
 
 //#region Conversation
 model Conversation {
-  Id         String           @id @default(uuid())
-  DateCreate DateTime         @default(now())
-  DateUpdate DateTime?        @updatedAt
-  Name       String?
-  Type       ConversationType
-  Member     Member[]
-  Message    Message[]
+  Id          String           @id @default(uuid())
+  DateCreate  DateTime         @default(now())
+  UserCreated String
+  DateUpdate  DateTime?        @updatedAt
+  Name        String?
+  Type        ConversationType
+  Member      Member[]
+  Message     Message[]
 }
 
 //#endregion
@@ -61,6 +62,7 @@ model Member {
   DateUpdate     DateTime?    @updatedAt
   IdUser         String
   IdConversation String
+  IsAllowed      Boolean?
   User           User         @relation(fields: [IdUser], references: [Id], onDelete: Restrict)
   Conversation   Conversation @relation(fields: [IdConversation], references: [Id], onDelete: Restrict)
 }

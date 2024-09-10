@@ -97,6 +97,7 @@ export class ConversationController {
         Id: this.utilityService.generateId(),
         Name: body.name,
         Type: body.type as ConversationType,
+        UserCreated: dbUser.Id,
       },
     });
 
