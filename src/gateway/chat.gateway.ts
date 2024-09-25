@@ -88,8 +88,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const recipientSocketId = this.userSockets.get(receiver.IdUser);
         if (recipientSocketId) {
           this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
-        } else {
-          console.log(`User with ID ${receiver.IdUser} is not connected.`);
         }
       }
     } else {
@@ -99,8 +97,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           const recipientSocketId = this.userSockets.get(member.IdUser);
           if (recipientSocketId) {
             this.server.to(recipientSocketId).emit('message', { ...message, member: { id: dbUser.Id, name: dbUser.Name, email: dbUser.Email, role: dbUser.Role } });
-          } else {
-            console.log(`User with ID ${member.IdUser} is not connected.`);
           }
         }
       });

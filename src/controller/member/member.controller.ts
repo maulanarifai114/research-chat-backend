@@ -58,6 +58,7 @@ export class MemberController {
       name: member.User.Name,
       email: member.User.Email,
       role: member.User.Role,
+      isAllowed: member.IsAllowed,
     }));
 
     return this.utilityService.globalResponse({
@@ -339,7 +340,7 @@ export class MemberController {
   //#region Bulk create
   @Post('bulk')
   @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
-  async createBulkMembers(@Req() request: Request, @Body() body: { idUsers: string[]; idConversation: string }) {
+  async createBulkMembers(@Req() request: Request, @Body() body: { idUsers: string[]; idAdmin?: string[]; idConversation: string }) {
     const user = request.user;
 
     // Check if the current user exists
@@ -366,33 +367,47 @@ export class MemberController {
       });
     }
 
-    // Filter out users that are already members of the conversation
+    // Check if any users or admins are already members of the conversation
+    const userIdsToCheck = [...body.idUsers, ...(body.idAdmin ?? [])];
+
     const existingMembers = await this.prismaService.member.findMany({
       where: {
         IdConversation: body.idConversation,
-        IdUser: { in: body.idUsers },
+        IdUser: { in: userIdsToCheck },
       },
     });
 
     const existingUserIds = existingMembers.map((member) => member.IdUser);
-    const newUserIds = body.idUsers.filter((idUser) => !existingUserIds.includes(idUser));
 
-    if (newUserIds.length === 0) {
+    // Filter out users and admins that are already members
+    const newUserIds = body.idUsers.filter((idUser) => !existingUserIds.includes(idUser));
+    const newAdminIds = (body.idAdmin ?? []).filter((idAdmin) => !existingUserIds.includes(idAdmin));
+
+    if (newUserIds.length === 0 && newAdminIds.length === 0) {
       return this.utilityService.globalResponse({
         statusCode: 400,
-        message: 'All users are already members of the conversation',
+        message: 'All users and admins are already members of the conversation',
       });
     }
 
-    // Prepare data for bulk insert
-    const membersData: any[] = newUserIds.map((idUser) => ({
-      Id: this.utilityService.generateId(),
-      IdUser: idUser,
-      IsAllowed: idUser === dbUser.Id,
-      IdConversation: body.idConversation,
-      DateCreate: new Date(),
-      DateUpdate: new Date(),
-    }));
+    const membersData: any[] = [
+      ...newUserIds.map((idUser) => ({
+        Id: this.utilityService.generateId(),
+        IdUser: idUser,
+        IsAllowed: false,
+        IdConversation: body.idConversation,
+        DateCreate: new Date(),
+        DateUpdate: new Date(),
+      })),
+      ...newAdminIds.map((idAdmin) => ({
+        Id: this.utilityService.generateId(),
+        IdUser: idAdmin,
+        IsAllowed: true,
+        IdConversation: body.idConversation,
+        DateCreate: new Date(),
+        DateUpdate: new Date(),
+      })),
+    ];
 
     // Perform bulk insert using createMany
     await this.prismaService.member.createMany({
@@ -402,9 +417,77 @@ export class MemberController {
 
     return this.utilityService.globalResponse({
       statusCode: 200,
-      message: `Successfully added ${membersData.length} members to the conversation`,
+      message: `Successfully added ${membersData.length} members (including admins) to the conversation`,
       data: { membersCount: membersData.length },
     });
   }
+
+  // async createBulkMembers(@Req() request: Request, @Body() body: { idUsers: string[]; idConversation: string }) {
+  //   const user = request.user;
+
+  //   // Check if the current user exists
+  //   const dbUser = await this.prismaService.user.findUnique({
+  //     where: { Id: user.id },
+  //   });
+
+  //   if (!dbUser) {
+  //     return this.utilityService.globalResponse({
+  //       statusCode: 400,
+  //       message: 'User not found',
+  //     });
+  //   }
+
+  //   // Validate if the conversation exists
+  //   const dbConversation = await this.prismaService.conversation.findUnique({
+  //     where: { Id: body.idConversation },
+  //   });
+
+  //   if (!dbConversation) {
+  //     return this.utilityService.globalResponse({
+  //       statusCode: 400,
+  //       message: 'Conversation not found',
+  //     });
+  //   }
+
+  //   // Filter out users that are already members of the conversation
+  //   const existingMembers = await this.prismaService.member.findMany({
+  //     where: {
+  //       IdConversation: body.idConversation,
+  //       IdUser: { in: body.idUsers },
+  //     },
+  //   });
+
+  //   const existingUserIds = existingMembers.map((member) => member.IdUser);
+  //   const newUserIds = body.idUsers.filter((idUser) => !existingUserIds.includes(idUser));
+
+  //   if (newUserIds.length === 0) {
+  //     return this.utilityService.globalResponse({
+  //       statusCode: 400,
+  //       message: 'All users are already members of the conversation',
+  //     });
+  //   }
+
+  //   // Prepare data for bulk insert
+  //   const membersData: any[] = newUserIds.map((idUser) => ({
+  //     Id: this.utilityService.generateId(),
+  //     IdUser: idUser,
+  //     IsAllowed: idUser === dbUser.Id,
+  //     IdConversation: body.idConversation,
+  //     DateCreate: new Date(),
+  //     DateUpdate: new Date(),
+  //   }));
+
+  //   // Perform bulk insert using createMany
+  //   await this.prismaService.member.createMany({
+  //     data: membersData,
+  //     skipDuplicates: true,
+  //   });
+
+  //   return this.utilityService.globalResponse({
+  //     statusCode: 200,
+  //     message: `Successfully added ${membersData.length} members to the conversation`,
+  //     data: { membersCount: membersData.length },
+  //   });
+  // }
   //#endregion
 }

@@ -19,6 +19,7 @@ export interface Member {
   email: string;
   role: RoleType;
   idConversation?: string;
+  isAllowed?: boolean;
 }
 
 export interface MemberDto {
