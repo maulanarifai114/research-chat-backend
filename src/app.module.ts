@@ -10,6 +10,8 @@ import { AuthController } from './controller/auth/auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { MemberController } from './controller/member/member.controller';
 import { ConversationController } from './controller/conversation/conversation.controller';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -17,6 +19,10 @@ import { ConversationController } from './controller/conversation/conversation.c
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'), // Akses folder uploads
+      serveRoot: '/uploads', // Akses URL untuk file
     }),
   ],
   controllers: [UserController, MessageController, AuthController, MemberController, ConversationController],
