@@ -173,6 +173,157 @@ export class MemberController {
   }
   //#endregion
 
+  //#region Order User
+  @Get('new/:idUser')
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async getOrderMemberByUser(@Req() request: Request) {
+    const user = request.user;
+
+    const dbUser = await this.prismaService.user.findUnique({
+      where: { Id: user.id },
+    });
+
+    if (!dbUser) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User not found',
+      });
+    }
+
+    const privateMembers = await this.prismaService.member.findMany({
+      where: {
+        IdUser: user.id,
+        Conversation: {
+          Type: 'PRIVATE',
+        },
+      },
+      include: {
+        Conversation: {
+          include: {
+            Message: {
+              orderBy: {
+                DateCreate: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
+        User: true,
+      },
+      orderBy: {
+        Conversation: {
+          Message: {
+            DateCreate: 'desc',
+          },
+        },
+      },
+    });
+
+    // Dapatkan percakapan grup dan urutkan berdasarkan pesan terbaru
+    const groupMembers = await this.prismaService.conversation.findMany({
+      where: {
+        Type: 'GROUP',
+        Member: {
+          some: {
+            IdUser: user.id,
+          },
+        },
+      },
+      include: {
+        Member: {
+          include: {
+            User: true,
+          },
+        },
+        Message: {
+          orderBy: {
+            DateCreate: 'desc',
+          },
+          take: 1, // Ambil pesan terbaru
+        },
+      },
+      orderBy: {
+        Message: {
+          DateCreate: 'desc', // Urutkan berdasarkan pesan terbaru
+        },
+      },
+    });
+
+    // Dapatkan percakapan broadcast dan urutkan berdasarkan pesan terbaru
+    const broadcastMembers = await this.prismaService.conversation.findMany({
+      where: {
+        Type: 'BROADCAST',
+        Member: {
+          some: {
+            IdUser: user.id,
+          },
+        },
+      },
+      include: {
+        Member: {
+          include: {
+            User: true,
+          },
+        },
+        Message: {
+          orderBy: {
+            DateCreate: 'desc',
+          },
+          take: 1, // Ambil pesan terbaru
+        },
+      },
+      orderBy: {
+        Message: {
+          DateCreate: 'desc', // Urutkan berdasarkan pesan terbaru
+        },
+      },
+    });
+
+    // Mapping hasil
+    const privateMember = privateMembers.map((member) => ({
+      id: member.User.Id,
+      name: member.User.Name,
+      email: member.User.Email,
+      role: member.User.Role,
+      idConversation: member.Conversation.Id,
+    }));
+
+    const groupMember = groupMembers.map((conversation) => ({
+      id: conversation.Id,
+      name: conversation.Name,
+      type: conversation.Type,
+      member: conversation.Member.map((member) => ({
+        id: member.User.Id,
+        name: member.User.Name,
+        email: member.User.Email,
+        role: member.User.Role,
+      })),
+    }));
+
+    const broadcastMember = broadcastMembers.map((conversation) => ({
+      id: conversation.Id,
+      name: conversation.Name,
+      type: conversation.Type,
+      member: conversation.Member.map((member) => ({
+        id: member.User.Id,
+        name: member.User.Name,
+        email: member.User.Email,
+        role: member.User.Role,
+      })),
+    }));
+
+    // Return data dengan urutan yang benar
+    return this.utilityService.globalResponse({
+      data: {
+        privateMember,
+        groupMember,
+        broadcastMember,
+      },
+      message: 'Success Get List Member by ID User (Ordered by Latest Message)',
+      statusCode: 200,
+    });
+  }
+
   //#region List User
   @Get('member/:userId')
   @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
