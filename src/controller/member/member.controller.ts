@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ConversationType, RoleType } from '@prisma/client';
-import * as dayjs from 'dayjs';
+// import * as dayjs from 'dayjs';
 import { Request } from 'express';
 import { Roles } from 'src/guard/roles/roles.decorator';
 import { Role } from 'src/guard/roles/roles.enum';
@@ -10,7 +10,7 @@ import { PrismaService } from 'src/services/prisma/prisma.service';
 import { UtilityService } from 'src/services/utility.service';
 
 @Controller('member')
-// @UseGuards(RolesGuard)
+@UseGuards(RolesGuard)
 export class MemberController {
   constructor(
     private prismaService: PrismaService,
@@ -176,31 +176,75 @@ export class MemberController {
 
   //#region Order User
   @Get('new/:idUser')
-  // @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
-  async getOrderMemberByUser(@Req() request: Request) {
-    // const user = request.user;
+  @Roles([Role.SUPERADMIN, Role.ADMIN, Role.MENTOR, Role.MEMBER])
+  async getOrderMemberByUser(@Req() request: Request, @Param('idUser') idUSer: string) {
+    const user = request.user;
 
-    // const dbUser = await this.prismaService.user.findUnique({
-    //   where: { Id: user.id },
-    // });
+    const dbUser = await this.prismaService.user.findUnique({
+      where: { Id: user.id },
+    });
 
-    // if (!dbUser) {
-    //   return this.utilityService.globalResponse({
-    //     statusCode: 400,
-    //     message: 'User not found',
-    //   });
-    // }
-
-    const user = {
-      id: '40P36VX3SSHJKZS4XK09',
-    };
+    if (!dbUser) {
+      return this.utilityService.globalResponse({
+        statusCode: 400,
+        message: 'User not found',
+      });
+    }
 
     const privateConversations = await this.prismaService.conversation.findMany({
       where: {
         Type: 'PRIVATE',
         Member: {
           some: {
-            IdUser: user.id,
+            IdUser: idUSer,
+          },
+        },
+      },
+      include: {
+        Member: {
+          include: {
+            User: true,
+          },
+        },
+        Message: {
+          orderBy: {
+            DateCreate: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    const groupMembers = await this.prismaService.conversation.findMany({
+      where: {
+        Type: 'GROUP',
+        Member: {
+          some: {
+            IdUser: idUSer,
+          },
+        },
+      },
+      include: {
+        Member: {
+          include: {
+            User: true,
+          },
+        },
+        Message: {
+          orderBy: {
+            DateCreate: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    const broadcastMembers = await this.prismaService.conversation.findMany({
+      where: {
+        Type: 'BROADCAST',
+        Member: {
+          some: {
+            IdUser: idUSer,
           },
         },
       },
@@ -221,15 +265,14 @@ export class MemberController {
 
     const privateConversation = privateConversations
       .sort((a, b) => {
-        // Assuming Message is a relation field within Conversation model
         const messageA = a.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
         const messageB = b.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
 
-        if (!messageA && !messageB) return 0; // Both conversations have no messages
-        if (!messageA) return 1; // Conversation A has no messages, put B first
-        if (!messageB) return -1; // Conversation B has no messages, put A first
+        if (!messageA && !messageB) return 0;
+        if (!messageA) return 1;
+        if (!messageB) return -1;
 
-        return (messageB.DateCreate as any) - (messageA.DateCreate as any); // Sort by latest message's DateCreate (desc)
+        return (messageB.DateCreate as any) - (messageA.DateCreate as any);
       })
       .map((conversation) => {
         const member = conversation.Member.find((member) => member.User.Id !== user.id);
@@ -239,147 +282,70 @@ export class MemberController {
           email: member.User.Email,
           role: member.User.Role,
           idConversation: conversation.Id,
-          message: conversation.Message,
         };
       });
 
-    //#region
-    // const privateMembers = await this.prismaService.member.findMany({
-    //   where: {
-    //     IdUser: user.id,
-    //     Conversation: {
-    //       Type: 'PRIVATE',
-    //     },
-    //   },
-    //   include: {
-    //     Conversation: {
-    //       include: {
-    //         Message: {
-    //           orderBy: {
-    //             DateCreate: 'desc',
-    //           },
-    //           take: 1,
-    //         },
-    //       },
-    //     },
-    //     User: true,
-    //   },
-    //   orderBy: {
-    //     Conversation: {
-    //       Message: {
-    //         DateCreate: 'desc',
-    //       },
-    //     },
-    //   },
-    // });
+    const groupConversation = groupMembers
+      .sort((a, b) => {
+        const messageA = a.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
+        const messageB = b.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
 
-    // // Dapatkan percakapan grup dan urutkan berdasarkan pesan terbaru
-    // const groupMembers = await this.prismaService.conversation.findMany({
-    //   where: {
-    //     Type: 'GROUP',
-    //     Member: {
-    //       some: {
-    //         IdUser: user.id,
-    //       },
-    //     },
-    //   },
-    //   include: {
-    //     Member: {
-    //       include: {
-    //         User: true,
-    //       },
-    //     },
-    //     Message: {
-    //       orderBy: {
-    //         DateCreate: 'desc',
-    //       },
-    //       take: 1, // Ambil pesan terbaru
-    //     },
-    //   },
-    //   // orderBy: {
-    //   //   Message: {
-    //   //     DateCreate: 'desc', // Urutkan berdasarkan pesan terbaru
-    //   //   },
-    //   // },
-    // });
+        if (!messageA && !messageB) return 0;
+        if (!messageA) return 1;
+        if (!messageB) return -1;
 
-    // // Dapatkan percakapan broadcast dan urutkan berdasarkan pesan terbaru
-    // const broadcastMembers = await this.prismaService.conversation.findMany({
-    //   where: {
-    //     Type: 'BROADCAST',
-    //     Member: {
-    //       some: {
-    //         IdUser: user.id,
-    //       },
-    //     },
-    //   },
-    //   include: {
-    //     Member: {
-    //       include: {
-    //         User: true,
-    //       },
-    //     },
-    //     Message: {
-    //       orderBy: {
-    //         DateCreate: 'desc',
-    //       },
-    //       take: 1, // Ambil pesan terbaru
-    //     },
-    //   },
-    //   // orderBy: {
-    //   //   Message: {
-    //   //     DateCreate: 'desc', // Urutkan berdasarkan pesan terbaru
-    //   //   },
-    //   // },
-    // });
+        return (messageB.DateCreate as any) - (messageA.DateCreate as any);
+      })
+      .map((conversation) => {
+        return {
+          id: conversation.Id,
+          name: conversation.Name,
+          type: conversation.Type,
+          members: conversation.Member.map((member) => ({
+            id: member.User.Id,
+            name: member.User.Name,
+            email: member.User.Email,
+            role: member.User.Role,
+          })),
+        };
+      });
 
-    // Mapping hasil
-    // const privateMember = privateMembers.map((member) => ({
-    //   id: member.User.Id,
-    //   name: member.User.Name,
-    //   email: member.User.Email,
-    //   role: member.User.Role,
-    //   idConversation: member.Conversation.Id,
-    //   message: member.Conversation.Message.map((a) => ({ id: a.Id, message: a.Message, dateCreate: a.DateCreate, dateUpdate: a.DateUpdate })),
-    // }));
+    const broadcastConversation = broadcastMembers
+      .sort((a, b) => {
+        const messageA = a.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
+        const messageB = b.Message?.sort((m1, m2) => (m2.DateCreate as any) - (m1.DateCreate as any))[0];
 
-    // const groupMember = groupMembers.map((conversation) => ({
-    //   id: conversation.Id,
-    //   name: conversation.Name,
-    //   type: conversation.Type,
-    //   member: conversation.Member.map((member) => ({
-    //     id: member.User.Id,
-    //     name: member.User.Name,
-    //     email: member.User.Email,
-    //     role: member.User.Role,
-    //   })),
-    // }));
+        if (!messageA && !messageB) return 0;
+        if (!messageA) return 1;
+        if (!messageB) return -1;
 
-    // const broadcastMember = broadcastMembers.map((conversation) => ({
-    //   id: conversation.Id,
-    //   name: conversation.Name,
-    //   type: conversation.Type,
-    //   member: conversation.Member.map((member) => ({
-    //     id: member.User.Id,
-    //     name: member.User.Name,
-    //     email: member.User.Email,
-    //     role: member.User.Role,
-    //   })),
-    // }));
+        return (messageB.DateCreate as any) - (messageA.DateCreate as any);
+      })
+      .map((conversation) => {
+        return {
+          id: conversation.Id,
+          name: conversation.Name,
+          type: conversation.Type,
+          members: conversation.Member.map((member) => ({
+            id: member.User.Id,
+            name: member.User.Name,
+            email: member.User.Email,
+            role: member.User.Role,
+          })),
+        };
+      });
 
-    // Return data dengan urutan yang benar
-    //#endregion
     return this.utilityService.globalResponse({
       data: {
         privateConversation,
-        // privateMember,
-        // groupMember,
-        // broadcastMember,
+        groupConversation,
+        broadcastConversation,
       },
       message: 'Success Get List Member by ID User (Ordered by Latest Message)',
       statusCode: 200,
     });
   }
+  //#endregion
 
   //#region List User
   @Get('member/:userId')
